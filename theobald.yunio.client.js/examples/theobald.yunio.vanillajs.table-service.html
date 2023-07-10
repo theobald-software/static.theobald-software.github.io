@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="description" content="yunIO web service pure direct call." />
+    <meta charset="utf-8">
+    <title>yunIO web service pure direct call.</title>
+    <style>
+        html {
+            font-size: 12px;
+            font-family: Helvetica, sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="result">SEE CONSOLE (F12)</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            window.callYunioWebservice = async function () {
+                // URL to your yunIO service
+                const
+                    // assuming HTTPS is configured
+                    url = 'https://yunioservice.YOURDOMAIN.com:8175/',
+                    //
+                    // credentials for authorization
+                    basicAuth = false,
+                    username = "user",
+                    password = "password",
+                    //
+                    // your web service name
+                    serviceName = "MAKTService",
+                    // your web service parameter
+                    whereClause = "MATNR LIKE '200-200'",
+                    //
+                    // generated at runtime
+                    urlWithService = `${url}services/${serviceName}`,
+                    authHeaderValue = 'Basic ' + btoa(`${username}:${password}`)
+                    ;
+
+                try {
+                    const response = await fetch(urlWithService, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json; charset=utf-8',
+                            ...(basicAuth ? { 'Authorization': authHeaderValue } : {})
+                        },
+                        body: JSON.stringify({ "whereClause": whereClause })
+                    });
+
+                    const data = await response.json();
+                    console.log(data);
+                    console.log(new Date().toString());
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            };
+
+            window.callYunioWebservice();
+        });
+    </script>
+</body>
+
+</html>

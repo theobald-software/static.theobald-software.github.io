@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="description" content="yunIO web service direct call with jQuery" />
+    <meta charset="utf-8">
+    <title>yunIO web service direct call without dependencies.</title>
+    <style>
+        html {
+            font-size: 12px;
+            font-family: Helvetica, sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="result">SEE CONSOLE (F12)</div>
+    <script>
+ (async function () {
+    async function postData(url, data = {}, auth = null) {
+        const fetchOptions = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data) // body data type must match "Content-Type" header
+        };
+
+        if (auth) {
+            fetchOptions.headers.Authorization = auth;
+        }
+
+        const response = await fetch(url, fetchOptions);
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        return await response.json();
+    }
+
+    try {
+        //
+        // CONFIG
+        //
+        const yunioConfig = {
+            url: 'https://yunioservices.YOURDOMAIN.com:8175/',
+            serviceName: "MAKTService",
+            username: null, 
+            //username: prompt('Username. Leave empty for anonymous/testing.', null),
+            password: null 
+            //password: prompt('Password. Leave empty for anonymous.', null)
+        };
+
+        const yunioWebServiceTableParameter = {
+            whereClause: "SPRAS = 'D'" //"MATNR LIKE '200-200'"
+        };
+
+        yunioConfig.urlWithService = `${yunioConfig.url}services/${yunioConfig.serviceName}`;
+        yunioConfig.authHeaderValue = yunioConfig.username ? 'Basic ' + btoa(`${yunioConfig.username}:${yunioConfig.password}`) : null;
+
+        console.debug(yunioConfig);
+        //
+        // EXECUTION
+        //
+        const data = await postData(
+            yunioConfig.urlWithService,
+            yunioWebServiceTableParameter,
+            yunioConfig.authHeaderValue
+        );
+
+        console.table(data); // JSON data parsed by `data.json()` call
+    } catch (error) {
+        console.error('Error:', error);
+    } finally {
+        console.log((new Date).toString());
+    }
+})();
+
+  </script>
+</body>
+
+</html>

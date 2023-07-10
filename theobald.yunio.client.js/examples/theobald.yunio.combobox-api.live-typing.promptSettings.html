@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta name="description" content="yunIO Combobox" />
+  <meta charset="utf-8" />
+  <title>Combobox Material</title>
+  <style>
+    html {
+      font-size: 12px;
+      font-family: Helvetica, sans-serif;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+</head>
+
+<body>
+  <div id="result">SEE CONSOLE (F12)</div>
+  <br />
+  <div>Material search query.</div>
+  <input id="inputMaterial" />
+  <br />
+  <select id="selectMaterial"></select>
+  <div>Material Id</div>
+  <input id="outputMaterialId" />
+  <br />
+  <div>Material description</div>
+  <input id="outputMaterialDescription" />
+  <script type="module">
+    document.addEventListener("DOMContentLoaded", async () => {
+      let yunioClient = await import(
+        "https://help.theobald-software.com/theobald.yunio.client.js/dist/theobald.yunio.client.js"
+      );
+
+      // webpage loaded
+      yunioClient.TheobaldYunioClient.initializeLiveCombobox({
+        //$: NWA$,
+        controls: {
+          inputId: "inputMaterial",
+          selectId: "selectMaterial",
+          outputId: "outputMaterialId",
+          //buttonId: 'buttonId',
+          descriptionId: "outputMaterialDescription"
+        },
+        tableSettings: {
+          serviceName: prompt("yunIO table service", "MAKTService"),
+          idField: prompt("yunIO table ID column", "MATNR"),
+          textField: prompt("yunIO table description column", "MAKTX"),
+          //languageField: prompt("yunIO table language column", "SPRAS"),
+          language: "E"
+        },
+        connection: {
+          url: prompt(
+            "yunIO server",
+            "https://youryunioservices.yourdomain.com:8175/"
+          ),
+          // in milliseconds
+          //
+          //timeout: 30000
+          username: prompt("yunIO username", ""),
+          password: prompt("yunIO password", "")
+          // useSharepointSettings: false
+        },
+        searchOptions: {
+          //useUppercaseValuesForQueries: true,
+          //removeLeadingZerosFromNumbers: false
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="description" content="yunIO Combobox" />
+    <meta charset="utf-8">
+    <title>Combobox Material</title>
+</head>
+
+<body>
+    <!DOCTYPE html>
+    <html>
+
+    <head>
+        <style>
+            html {
+                font-size: 12px;
+                font-family: Helvetica, sans-serif;
+            }
+        </style>
+        <title></title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    </head>
+
+    <body>
+
+        <div id="result">SEE CONSOLE (F12)</div>
+        <br />
+        <div>Material search query.</div>
+        <input id="inputMaterial">
+        <br />
+        <button id="buttonMaterial">Search</button>
+        <br />
+        <select id="selectMaterial"></select>
+        <div>Material Id</div>
+        <input id="outputMaterialId">
+        <br />
+        <div>Material description</div>
+        <input id="outputMaterialDescription">
+        <script type="module">
+            let yunioClient = await import(
+                "https://help.theobald-software.com/theobald.yunio.client.js/dist/theobald.yunio.client.js"
+            );
+
+            $(document).ready(async function () {
+                // webpage loaded
+                yunioClient.TheobaldYunioClient.initializeLiveCombobox({
+                    //$: NWA$,
+                    controls: {
+                        inputId: 'inputMaterial',
+                        selectId: 'selectMaterial',
+                        outputId: 'outputMaterialId',
+                        buttonId: 'buttonMaterial',
+                        descriptionId: 'outputMaterialDescription'
+                    },
+                    tableSettings: {
+                        serviceName: "MAKTService",
+                        idField: "MATNR",
+                        textField: "MAKTX",
+                        language: "E"
+                    },
+                    connection: {
+                        url: "https://youryunioservices.yourdomain.com:8175/",
+                        // in milliseconds
+                        //
+                        //timeout: 30000
+                        username: "",
+                        password: ""
+                        // useSharepointSettings: false
+                    },
+                    searchOptions: {
+                        //useUppercaseValuesForQueries: true,
+                        //removeLeadingZerosFromNumbers: false
+                    }
+                });
+            });
+        </script>
+    </body>
+
+    </html>
+</body>
+
+</html>
