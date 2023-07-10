@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", async () => {
     let yunioClient = await import(
-        "https://help.theobald-software.com/theobald.yunio.client.js/dist/theobald.yunio.client.js"
+        "https://static.theobald-software.com/theobald.yunio.client.js/dist/theobald.yunio.client.js"
     );
 
     yunioClient.TheobaldYunioClient.initializeLiveCombobox({
