@@ -8,6 +8,20 @@ The package incorporates a JavaScript library for REST.
 
 For optimum results when developing with yunIO REST Services utilizing JavaScript, it is highly recommended to make use of our proprietary JavaScript library. This library streamlines client-side programming by encapsulating various yunIO-specific functionalities.
 
+## All examples
+
+[Examples](./examples/)
+
+## Basic calls with pure JavaScript
+
+[Table example](./examples/theobald.yunio.vanillajs.table-service.html)
+
+[Table example with parameterized call](./examples/theobald.yunio.vanillajs.table-service.parametrizable-connection.html)
+
+[Function example](./examples/theobald.yunio.vanillajs.function-service.html)
+
+## API interface for Combobox
+
 Below is the primary API interface, elegantly designed for an intuitive experience:
 ```javascript
 initializeLiveCombobox({

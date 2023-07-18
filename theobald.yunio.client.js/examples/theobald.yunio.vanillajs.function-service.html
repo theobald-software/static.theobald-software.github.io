@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="description" content="yunIO web service pure direct call." />
+    <meta charset="utf-8">
+    <title>yunIO web service pure direct call.</title>
+    <style>
+        html {
+            font-size: 12px;
+            font-family: Helvetica, sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="result">SEE CONSOLE (F12)</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            window.callYunioWebservice = async function () {
+                const
+                    /* URL to your yunIO service with configured HTTPS */
+                    url = 'https://yunioservice.YOURDOMAIN.com:8175/',
+                    /*
+                     * Your webservice name
+                     */
+                     serviceName = "SAPRequirementsCreate",
+                    /*
+                     * Credentials for authorization
+                     */
+                    username = "user",
+                    password = "password",
+                    /*
+                     * Your webservice input parameters
+                     */
+                    inputParameters = {
+                        requirements_item: {
+                            material: "100-101",
+                            plant: "1000"
+                        },
+                        requirements_schedule_in: [
+                            {
+                                date_type: "3",
+                                date: "20240201",
+                                qty: 1700,
+                                unit: "ST"
+                            }
+                        ]
+                    },
+                    /*
+                     * generated at runtime
+                     */
+                    urlWithService = `${url}services/${serviceName}`,
+                    authHeaderValue = 'Basic ' + btoa(`${username}:${password}`)
+                    ;
+
+                try {
+                    const response = await fetch(urlWithService, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json; charset=utf-8',
+                            'Authorization': authHeaderValue
+                        },
+                        body: JSON.stringify(inputParameters)
+                    });
+
+                    const data = await response.json();
+                    console.log(data);
+                    console.log(new Date().toString());
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            };
+
+            window.callYunioWebservice();
+        });
+    </script>
+</body>
+
+</html>
