@@ -677,7 +677,7 @@ export class TheobaldYunioClient {
         }
 
         if (_searchOptions.extraWhereConditions) {
-            whereClauseFormat = `${whereClauseFormat} ${_searchOptions.extraWhereConditions}`;
+            whereClauseFormat = `${whereClauseFormat} ${extraWhereConditions}`;
         }
 
         return TheobaldYunioClient.format(
