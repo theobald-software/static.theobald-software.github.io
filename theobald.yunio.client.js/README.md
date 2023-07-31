@@ -30,12 +30,16 @@ initializeLiveCombobox({
         selectId: "",
         outputId: "",
         descriptionId: "",
+        additionalInfoId: "",
         buttonId: "" 
     },
     tableSettings: { 
         serviceName: "KNA1_Service",
         idField: "KUNNR",
-        textField: "NAME1",
+        // optional
+        descriptionField: "NAME1",
+        // optional
+        additionalInfoField: "NAME1",
         // optional
         languageField: "SPRAS",
         // to be formatted as SPRAS = {0}
@@ -47,7 +51,10 @@ initializeLiveCombobox({
         useUppercaseValuesForQueries: true,
         // output
         removeLeadingZerosFromNumbers: false,
-        // translated strings (e.g., german: true) - not for public API
+        // optional, add your constant where filter
+        // extraWhereConditions: "AND ENDDA LIKE '99991231'"
+        //
+        // translated strings (e.g., german: true)
         // strings: null,
         // preferably configured via service settings
         // maxEntries: 5000,
