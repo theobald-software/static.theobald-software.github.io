@@ -17,15 +17,18 @@
 <body>
   <div id="result">SEE CONSOLE (F12)</div>
   <br />
-  <div>Material search query.</div>
-  <input id="inputMaterial" />
+  <div>Customer search query (by customer number).</div>
+  <input id="inputCustomerNumber">
   <br />
-  <select id="selectMaterial"></select>
-  <div>Material Id</div>
-  <input id="outputMaterialId" />
+  <select id="selectCustomer"></select>
+  <div>Customer number</div>
+  <input id="outputCustomerId">
   <br />
-  <div>Material description</div>
-  <input id="outputMaterialDescription" />
+  <div>firstName</div>
+  <input id="firstName">
+  <br />
+  <div>lastName</div>
+  <input id="lastName">
   <script type="module">
     document.addEventListener("DOMContentLoaded", async () => {
       let yunioClient = await import(
@@ -36,18 +39,20 @@
       yunioClient.TheobaldYunioClient.initializeLiveCombobox({
         //$: NWA$,
         controls: {
-          inputId: "inputMaterial",
-          selectId: "selectMaterial",
-          outputId: "outputMaterialId",
+          inputId: 'inputCustomerNumber',
+          selectId: 'selectCustomer',
+          outputId: 'outputCustomerId',
           //buttonId: 'buttonId',
-          descriptionId: "outputMaterialDescription"
+          descriptionId: 'firstName',
+          additionalInfoId: 'lastName'
         },
         tableSettings: {
-          serviceName: prompt("yunIO table service", "MAKTService"),
-          idField: prompt("yunIO table ID column", "MATNR"),
-          descriptionField: prompt("yunIO table description column", "MAKTX"),
+          serviceName: prompt("yunIO table service", "kna1_service"),
+          idField: prompt("yunIO table ID column", "KUNNR"),
+          descriptionField: prompt("yunIO table description column", "NAME1"),
+          additionalInfoField: prompt("yunIO table additional column", "NAME2")
           //languageField: prompt("yunIO table language column", "SPRAS"),
-          language: "E"
+          //language: "E"
         },
         connection: {
           url: prompt(
@@ -63,7 +68,8 @@
         },
         searchOptions: {
           //useUppercaseValuesForQueries: true,
-          //removeLeadingZerosFromNumbers: false
+          //removeLeadingZerosFromNumbers: false,
+          //extraWhereConditions: "AND ADRNR LIKE '%025%'"
         }
       });
     });
