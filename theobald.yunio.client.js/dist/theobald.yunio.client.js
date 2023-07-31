@@ -277,15 +277,18 @@ export class TheobaldYunioClient {
            inputId: "",
            selectId: "",
            outputId: "",
+           // 'textId' is obsolete and will be removed. Use 'descriptionId' instead!
            descriptionId: "",
+           additionalInfoId: "",
            buttonId: "" 
         },
         tableSettings: { 
-            serviceName: "KNA1_Service" 
+            serviceName: "KNA1_Service",
             idField: "KUNNR",
-            textField: "NAME1",
+            descriptionField: "NAME1",
+            additionalInfoField: "NAME2"
             // optional
-            languageField: "SPRAS",
+            // languageField: "SPRAS",
             // will be added as SPRAS = {0}
             // E.g. default LANG data type: 1 char!
             language: "E"
@@ -361,10 +364,18 @@ export class TheobaldYunioClient {
             return false;
         }
 
+        if (controls.textId) {
+            // backward compatible
+            controls.descriptionId = controls.textId;
+        }
+
         validationObject.domControls = {
             tsInput: $(`#${controls.inputId}`),
             tsSelect: $(`#${controls.selectId}`),
-            tsOutputId: $(`#${controls.outputId}`)
+            tsOutputId: $(`#${controls.outputId}`),
+            tsInputDescription: controls.descriptionId ? $(`#${controls.descriptionId}`) : null,
+            tsAdditionalInfo: controls.additionalInfoId ? $(`#${controls.additionalInfoId}`) : null,
+            tsButton: controls.buttonId ? $(`#${controls.buttonId}`) : null
         }
 
         const domControls = validationObject.domControls;
@@ -386,37 +397,20 @@ export class TheobaldYunioClient {
 
         // EXTRA FIELDS
 
-        if (controls.descriptionId) {
-            domControls.tsInputDescription = $(`#${controls.descriptionId}`);
-
-            if (domControls.tsInputDescription.length != 1) {
-                console.error(`YunioJS: description field for saving the description not found under id '${controls.outputId}'. For NintexForms use variables - 'outputId: descriptionId' - without quotes.`);
-                return false;
-            }
+        if (controls.descriptionId && domControls.tsInputDescription.length != 1) {
+            console.error(`YunioJS: description field for saving the description not found under id '${controls.descriptionId}'. For NintexForms use variables - 'descriptionId: myDescriptionId' - without quotes.`);
+            return false;
         }
 
-        if (controls.buttonId) {
-            domControls.tsButton = $(`#${controls.buttonId}`);
-
-            if (controls.buttonId && domControls.tsButton.length != 1) {
-                console.error(`YunioJS: button for triggering the search not found under id '${controls.buttonId}'. For NintexForms use variables - 'buttonId: buttonId' - without quotes.`);
-                return false;
-            }
+        if (controls.additionalInfoId && domControls.tsAdditionalInfo.length != 1) {
+            console.error(`YunioJS: additionalInfo field for saving the extra info not found under id '${controls.additionalInfoId}'. For NintexForms use variables - 'additionalInfoId: myAdditionalInfoId' - without quotes.`);
+            return false;
         }
 
-        // setting and validating dom fields.
-        // const
-        //     // DEFINE FIELD VARIABLES (IN NINTEX FORM SETTINGS)
-        //     // material number input and dropdown
-        //     tsInput = $(`#${controls.inputId}`),
-        //     // in combobox properties set custom text e.g. "Start typing in the field above..."
-        //     tsSelect = $(`#${controls.selectId}`),
-        //     // id output
-        //     tsOutputId = $(`#${controls.outputId}`),
-        //     // description output
-        //     tsInputDescription = controls.descriptionId && $(`#${controls.descriptionId}`),
-        //     // button for manual search
-        //     tsButton = controls.buttonId && $('#' + controls.buttonId);
+        if (controls.buttonId && domControls.tsButton.length != 1) {
+            console.error(`YunioJS: button for triggering the search not found under id '${controls.buttonId}'. For NintexForms use variables - 'buttonId: buttonId' - without quotes.`);
+            return false;
+        }
 
         return true;
     }
@@ -425,7 +419,7 @@ export class TheobaldYunioClient {
         // literals
         stringsEN: {
             loading: 'Loading...',
-            matches: ' matches',
+            matches: 'matches',
             noMatchText: 'No direct match!',
             noMatches: 'No matches',
             errComm: 'Communication error, please see console',
@@ -434,13 +428,18 @@ export class TheobaldYunioClient {
         },
         stringsDE: {
             loading: 'Wird geladen...',
-            matches: ' Treffer',
-            noMatchText: 'Keine direkte Entsprechung!',
+            matches: 'Treffer',
+            noMatchText: 'Keine Übereinstimmung.',
             noMatches: 'Keine Treffer',
             errComm: 'Netzwerk Fehler (bitte Konsole öffnen)',
             select: 'Bitte auswählen',
             type: 'Geben Sie einen Suchbegriff ein'
         },
+    }
+
+    static #DefaultSearchOptions = {
+        useUppercaseValuesForQueries: true,
+        removeLeadingZerosFromNumbers: false
     }
 
     static initializeLiveCombobox(options) {
@@ -453,10 +452,7 @@ export class TheobaldYunioClient {
             // nintex: it could work without jquery.
             // todo: jq: clone/empty
             $ = window.$ || options.$,
-            _searchOptions = TheobaldYunioClient._extendSkipEmptyStrings({}, {
-                useUppercaseValuesForQueries: true,
-                removeLeadingZerosFromNumbers: false
-            }, options.searchOptions),
+            _searchOptions = TheobaldYunioClient.#cloneOptions(options.searchOptions),
             controls = options.controls,
             domControls = validationObject.domControls,
             //
@@ -465,26 +461,12 @@ export class TheobaldYunioClient {
             // SELECT LANGUAGE
             strings = TheobaldYunioClient._extendSkipEmptyStrings(
                 {},
-                _searchOptions.german ? TheobaldYunioClient.#liveComboboxTexts.stringsDE : TheobaldYunioClient.#liveComboboxTexts.stringsEN,
+                _searchOptions.german
+                    ? TheobaldYunioClient.#liveComboboxTexts.stringsDE
+                    : TheobaldYunioClient.#liveComboboxTexts.stringsEN,
                 options.strings),
             //
-            // domOptionString1parameter = '{0}',
-            domOptionString = '{0} ({1})',
-            //
-            // BUILD/PREPARE/CUSTOMIZE YOUR QUERY
-            // xql query.
-            // ({0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%') AND SPRAS = '{3}' 
-            whereClause =
-                // pass directly
-                _searchOptions.whereClause
-                || TheobaldYunioClient.format(
-                    // format string
-                    _searchOptions.whereClauseFormat || " ( {0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%' ) AND {2} = '{3}'",
-                    tableSettings.idField,
-                    tableSettings.textField,
-                    tableSettings.languageField || 'SPRAS',
-                    tableSettings.language
-                ),
+            whereClause = TheobaldYunioClient.#getWhereClause(_searchOptions, tableSettings),
             // yunio service name
             //tableSettings.serviceName,
             //whereClause = "(MATNR LIKE '%{0}%' OR MAKTX LIKE '%{0}%' OR MAKTG LIKE '%{0}%') AND (SPRAS = 'E' OR SPRAS = 'D')",
@@ -534,18 +516,44 @@ export class TheobaldYunioClient {
                         newOptionAfterInput.prop('selected', 'selected');
 
                         if (data.length > 0) {
-                            newOptionAfterInput.text(TheobaldYunioClient.format(domOptionString, strings.select, data.length + strings.matches));
+                            newOptionAfterInput.text(
+                                `${strings.select} (${data.length} ${strings.matches})`
+                            );
+
                             tsSelect.append(newOptionAfterInput);
 
-                            $.each(data, function (i, v) {
+                            $.each(data, function (index, row) {
                                 const $option = firstOption.clone();
 
-                                const idFieldValue = _searchOptions.removeLeadingZerosFromNumbers ? TheobaldYunioClient.ltrim(v[tableSettings.idField], '0') : v[tableSettings.idField];
+                                const
+                                    idFieldValueRaw = row[tableSettings.idField],
 
-                                $option.text(TheobaldYunioClient.format(domOptionString, idFieldValue, v[tableSettings.textField]));
+                                    idFieldValue =
+                                        _searchOptions.removeLeadingZerosFromNumbers
+                                            ? TheobaldYunioClient.ltrim(idFieldValueRaw, '0')
+                                            : idFieldValueRaw,
 
-                                $option.attr('tsid', v[tableSettings.idField]);
-                                $option.attr('tsdescription', v[tableSettings.textField]);
+                                    descriptionValue = row[tableSettings.descriptionField],
+                                    additionalInfoValue = row[tableSettings.additionalInfoField];
+
+                                const effectiveDescriptionAndAdditional =
+                                    TheobaldYunioClient.#prepareDescription(
+                                        descriptionValue,
+                                        additionalInfoValue
+                                    );
+
+                                $option.text(
+                                    `${idFieldValue}${effectiveDescriptionAndAdditional}`
+                                );
+
+                                $option.attr('tsid', idFieldValueRaw);
+
+                                tableSettings.descriptionField
+                                    && $option.attr('tsdescription', descriptionValue);
+
+                                tableSettings.additionalInfoField
+                                    && $option.attr('tsadditionalinfo', additionalInfoValue);
+
                                 tsSelect.append($option);
                             });
                         } else {
@@ -571,9 +579,105 @@ export class TheobaldYunioClient {
         // when user selects an option
         tsSelect.on('change', function () {
             const selectedOption = tsSelect.find('option:selected');
+
             domControls.tsOutputId.val(selectedOption.attr('tsid'));
-            controls.descriptionId && domControls.tsInputDescription.val(selectedOption.attr('tsdescription'));
+
+            controls.descriptionId
+                && domControls.tsInputDescription.val(
+                    selectedOption.attr('tsdescription')
+                );
+
+            controls.additionalInfoId
+                && domControls.tsAdditionalInfo.val(
+                    selectedOption.attr('tsadditionalinfo')
+                );
         });
+    }
+
+    static #cloneOptions(options) {
+        return TheobaldYunioClient._extendSkipEmptyStrings(
+            {},
+            TheobaldYunioClient.#DefaultSearchOptions,
+            options
+        );
+    }
+
+    // returns empty if both empty, one if one filled and both if both filled.
+    static #prepareDescription(descriptionValue, additionalInfoValue) {
+        const
+            hasDescriptionValue
+                = TheobaldYunioClient.#hasValue(descriptionValue),
+
+            hasAdditionalInfoValue
+                = TheobaldYunioClient.#hasValue(additionalInfoValue);
+
+        let combinedArray = [];
+
+        hasDescriptionValue &&
+            combinedArray.push(descriptionValue);
+
+        hasAdditionalInfoValue &&
+            combinedArray.push(additionalInfoValue);
+
+        return combinedArray.length == 0
+            ? ''
+            : ` (${combinedArray.join(' ')})`;
+    }
+
+    static #hasValue(value) {
+        if (value === undefined) {
+            return false;
+        }
+
+        if (typeof value === 'number') {
+            // can be zero
+            return true;
+        }
+
+        if (typeof value === 'string') {
+            value = value.trim();
+            if (value === '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // BUILD/PREPARE/CUSTOMIZE YOUR QUERY
+    // xql query.
+    // ({0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%') AND SPRAS = '{3}' 
+    static #getWhereClause(_searchOptions, tableSettings) {
+        const WHERE_WITHOUT_LANG = " ( {0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%' )";
+        const WHERE_WITH_LANG = " ( {0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%' ) AND {2} = '{3}'";
+
+        if (_searchOptions.whereClause)
+            // pass directly
+            return _searchOptions.whereClause;
+
+        let whereClauseFormat;
+        let language = null;
+        let languageField = null;
+
+        if (_searchOptions.whereClauseFormat)
+            whereClauseFormat = _searchOptions.whereClauseFormat;
+        else {
+            if (tableSettings.language) {
+                language = tableSettings.language;
+                languageField = tableSettings.languageField || 'SPRAS';
+                whereClauseFormat = WHERE_WITH_LANG;
+            }
+            else
+                whereClauseFormat = WHERE_WITHOUT_LANG;
+        }
+
+        return TheobaldYunioClient.format(
+            whereClauseFormat,
+            tableSettings.idField,
+            tableSettings.descriptionField,
+            languageField,
+            language
+        );
     }
     //
     //#endregion UI API / Combobox
