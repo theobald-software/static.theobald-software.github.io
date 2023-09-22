@@ -202,6 +202,12 @@ export class TheobaldYunioClient {
 
         const response = await fetch(serviceUrl, fetchOptions);
 
+        // case of json-free (unwrapped) response, e.g. sap throw or auth
+
+        // get text
+
+        // if it's non parseable it's either an error or broken json 
+
         // const reader = response.body
         //     .pipeThrough(new TextDecoderStream())
         //     .getReader();
@@ -227,7 +233,7 @@ export class TheobaldYunioClient {
         whereClause: "x"
     }
     */
-    static executeTableServiceAsync(
+    static async executeTableServiceAsync(
         // url, auth
         connection,
         // could be specified here or directly in the connection URL.
@@ -252,7 +258,7 @@ export class TheobaldYunioClient {
             }
         }
 
-        return TheobaldYunioClient.#postData(connection, tableServiceName, tableData);
+        return await TheobaldYunioClient.#postData(connection, tableServiceName, tableData);
     }
 
     static executeFunctionServiceAsync(
@@ -298,6 +304,8 @@ export class TheobaldYunioClient {
            useUppercaseValuesForQueries: true,
            // output
            removeLeadingZerosFromNumbers: false,
+           // uses additionalInfoField value to query SAP data too
+           useAdditionalInfoFieldForSearch: false,
            // translated strings
            //german: true,
            //
@@ -313,6 +321,9 @@ export class TheobaldYunioClient {
            //
            // will be replaced through parameter backend
            //whereClause: "", 
+           //
+           // " ( {0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%' )"
+           // {0}, {1}
            //whereClauseFormat: ""
         },
         connection: {
@@ -444,7 +455,8 @@ export class TheobaldYunioClient {
 
     static #DefaultSearchOptions = {
         useUppercaseValuesForQueries: true,
-        removeLeadingZerosFromNumbers: false
+        removeLeadingZerosFromNumbers: false,
+        useAdditionalInfoFieldForSearch: false
     }
 
     static initializeLiveCombobox(options) {
@@ -452,6 +464,10 @@ export class TheobaldYunioClient {
 
         if (!TheobaldYunioClient.#validateLiveComboboxOptionsAndGetDomControls(options, validationObject))
             return void (0);
+
+        // backward compat
+        // if (options?.tableSettings?.textField && !options.tableSettings.descriptionField)
+        //     options.tableSettings.descriptionField = options.tableSettings.textField;
 
         const
             // nintex: it could work without jquery.
@@ -478,13 +494,13 @@ export class TheobaldYunioClient {
             // DEFINE whether search queries should be send in UPPERCASE (if SAP has a field for case insensitive searches)
 
             // Main call            
-            queryFunction = function (val) {
+            queryFunction = async function (val) {
                 const effectiveValue = _searchOptions.useUppercaseValuesForQueries ? val.toUpperCase() : val,
                     tableServiceParameters = {
                         whereClause: TheobaldYunioClient.format(whereClause, effectiveValue)
                     };
 
-                return TheobaldYunioClient.executeTableServiceAsync(
+                return await TheobaldYunioClient.executeTableServiceAsync(
                     options.connection,
                     tableSettings.serviceName,
                     tableServiceParameters
@@ -505,7 +521,7 @@ export class TheobaldYunioClient {
         tsSelect.empty();
         tsSelect.append(firstOption.clone());
 
-        function doSearch() {
+        async function doSearch() {
             tsSelect.empty();
             const newOption = firstOption.clone();
             newOption.text(strings.loading);
@@ -513,64 +529,58 @@ export class TheobaldYunioClient {
             newOption.prop('selected', 'selected');
 
             // discard last queries/races
-            queryFunction(domControls.tsInput.val())
-                .then(
-                    function (data) {
-                        tsSelect.empty();
-                        const newOptionAfterInput = firstOption.clone();
-                        newOptionAfterInput.prop('selected', 'selected');
+            try {
+                const data = await queryFunction(domControls.tsInput.val());
 
-                        if (data.length > 0) {
-                            newOptionAfterInput.text(
-                                `${strings.select} (${data.length} ${strings.matches})`
+                tsSelect.empty();
+                const newOptionAfterInput = firstOption.clone();
+                newOptionAfterInput.prop('selected', 'selected');
+
+                if (data.length > 0) {
+                    newOptionAfterInput.text(
+                        `${strings.select} (${data.length} ${strings.matches})`
+                    );
+                    tsSelect.append(newOptionAfterInput);
+
+                    for (const [index, row] of data.entries()) {
+                        const $option = firstOption.clone();
+
+                        const idFieldValueRaw = row[tableSettings.idField];
+                        const idFieldValue = _searchOptions.removeLeadingZerosFromNumbers
+                            ? TheobaldYunioClient.ltrim(idFieldValueRaw, '0')
+                            : idFieldValueRaw;
+
+                        const descriptionValue = row[tableSettings.descriptionField];
+                        const additionalInfoValue = row[tableSettings.additionalInfoField];
+
+                        const effectiveDescriptionAndAdditional =
+                            TheobaldYunioClient.#prepareDescription(
+                                descriptionValue,
+                                additionalInfoValue
                             );
 
-                            tsSelect.append(newOptionAfterInput);
+                        $option.text(`${idFieldValue}${effectiveDescriptionAndAdditional}`);
+                        $option.attr('tsid', idFieldValueRaw);
 
-                            $.each(data, function (index, row) {
-                                const $option = firstOption.clone();
-
-                                const
-                                    idFieldValueRaw = row[tableSettings.idField],
-
-                                    idFieldValue =
-                                        _searchOptions.removeLeadingZerosFromNumbers
-                                            ? TheobaldYunioClient.ltrim(idFieldValueRaw, '0')
-                                            : idFieldValueRaw,
-
-                                    descriptionValue = row[tableSettings.descriptionField],
-                                    additionalInfoValue = row[tableSettings.additionalInfoField];
-
-                                const effectiveDescriptionAndAdditional =
-                                    TheobaldYunioClient.#prepareDescription(
-                                        descriptionValue,
-                                        additionalInfoValue
-                                    );
-
-                                $option.text(
-                                    `${idFieldValue}${effectiveDescriptionAndAdditional}`
-                                );
-
-                                $option.attr('tsid', idFieldValueRaw);
-
-                                tableSettings.descriptionField
-                                    && $option.attr('tsdescription', descriptionValue);
-
-                                tableSettings.additionalInfoField
-                                    && $option.attr('tsadditionalinfo', additionalInfoValue);
-
-                                tsSelect.append($option);
-                            });
-                        } else {
-                            newOptionAfterInput.text(strings.noMatches);
-                            tsSelect.append(newOptionAfterInput);
+                        if (tableSettings.descriptionField) {
+                            $option.attr('tsdescription', descriptionValue);
                         }
 
-                        tsSelect[0].selectedIndex = 0;
-                    },
-                    function (xhr, et) {
-                        console.log(xhr, et);
-                    });
+                        if (tableSettings.additionalInfoField) {
+                            $option.attr('tsadditionalinfo', additionalInfoValue);
+                        }
+
+                        tsSelect.append($option);
+                    }
+                } else {
+                    newOptionAfterInput.text(strings.noMatches);
+                    tsSelect.append(newOptionAfterInput);
+                }
+
+                tsSelect[0].selectedIndex = 0;
+            } catch (e) {
+                console.log(e);
+            }
         }
 
         if (controls.buttonId) {
@@ -650,11 +660,17 @@ export class TheobaldYunioClient {
     }
 
     // BUILD/PREPARE/CUSTOMIZE YOUR QUERY
-    // xql query.
-    // ({0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%') AND SPRAS = '{3}' 
+    // format for the xql query.
+    // {0} - idField
+    // {1} - descriptionField
+    // {2} - additionalInfoField
+    // {3} - languageField
+    // {4} - language
+    // " ( {0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%' OR {2} LIKE '%{{0}}%' )" 
     static #getWhereClause(_searchOptions, tableSettings) {
-        const WHERE_WITHOUT_LANG = " ( {0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%' )";
-        const WHERE_WITH_LANG = " ( {0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%' ) AND {2} = '{3}'";
+        const WHERE_ID_DESCRIPTION = " ( {0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%' )";
+        const WHERE_ID_DESCRIPTION_ADDITIONAL = " ( {0} LIKE '%{{0}}' OR {1} LIKE '%{{0}}%' OR {2} LIKE '%{{0}}%' )";
+        const WHERE_LANG_CONDITION = " AND {3} = '{4}'";
 
         if (_searchOptions.whereClause)
             // pass directly
@@ -667,25 +683,39 @@ export class TheobaldYunioClient {
         if (_searchOptions.whereClauseFormat)
             whereClauseFormat = _searchOptions.whereClauseFormat;
         else {
+            whereClauseFormat =
+                _searchOptions.useAdditionalInfoFieldForSearch
+                    ? WHERE_ID_DESCRIPTION_ADDITIONAL
+                    : WHERE_ID_DESCRIPTION;
+
             if (tableSettings.language) {
                 language = tableSettings.language;
                 languageField = tableSettings.languageField || 'SPRAS';
-                whereClauseFormat = WHERE_WITH_LANG;
+                whereClauseFormat = `${whereClauseFormat} ${WHERE_LANG_CONDITION}`;
             }
-            else
-                whereClauseFormat = WHERE_WITHOUT_LANG;
         }
 
         if (_searchOptions.extraWhereConditions) {
-            whereClauseFormat = `${whereClauseFormat} ${_searchOptions.extraWhereConditions}`;
+            whereClauseFormat =
+                `${whereClauseFormat} ${_searchOptions.extraWhereConditions}`;
         }
 
+        /* tableSettings.whereClauseFields =
+          [ 
+            tableSettings.idField,
+            tableSettings.descriptionField,
+            tableSettings.additionalInfoField,
+            languageField,
+            language
+          ]
+        */
         return TheobaldYunioClient.format(
             whereClauseFormat,
             tableSettings.idField,
-            tableSettings.descriptionField,
+            tableSettings.descriptionField || '',
+            tableSettings.additionalInfoField || '',
             languageField,
-            language
+            language || ''
         );
     }
     //
