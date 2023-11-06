@@ -2,7 +2,7 @@
 
 export class TheobaldYunioClient {
     //
-    // #region string formatters (useful for SAP messages and parameters)
+    // #region string formatters
     //
 
     // I. first parameter - format string
@@ -115,7 +115,7 @@ export class TheobaldYunioClient {
         }
         catch (e) {
             if (e instanceof TypeError) {
-                console.warn(`YUNIOJS: '${serverUrl}' is not a valid URL. Please use format: 'https://your-yunio-endpoint.com:8175/'`);
+                console.warn(`yunIO: '${serverUrl}' is not a valid URL. Please use format: 'https://your-yunio-endpoint.com:8175/'`);
                 return null;
             }
 
@@ -125,7 +125,7 @@ export class TheobaldYunioClient {
         if (servicePath) {
             url.pathname = `${pathname}/services/${servicePath}`;
         } else if (pathname.split('/').length < 3) {
-            console.warn('YUNIOJS: servicePath is required. Use either full URL in the connection object or pass the servicePath additionally.');
+            console.warn('yunIO: servicePath is required. Use either full URL in the connection object or pass the servicePath additionally.');
             return null;
         }
 
@@ -145,7 +145,7 @@ export class TheobaldYunioClient {
         return null;
     }
 
-    static async #postData(
+    static async #postDataInternal(
         connection,
         serviceName = null,
         // const stream = new ReadableStream()
@@ -194,39 +194,56 @@ export class TheobaldYunioClient {
                 body: JSON.stringify(data) // body data type must match "Content-Type" header
             };
 
-
-
         if (authFinal) {
             fetchOptions.headers.authorization = authFinal;
         }
 
         const response = await fetch(serviceUrl, fetchOptions);
 
-        // case of json-free (unwrapped) response, e.g. sap throw or auth
+        return response;
+    }
 
-        // get text
+    // Returns null on errors and prints errors into the console.
+    // Used to satisfy interactive usages with no "container" for errors.
+    static async #postData(
+        connection,
+        serviceName = null,
+        // const stream = new ReadableStream()
+        // default - not chunked
+        data = {},
+        // e.g. different users.
+        auth = null
+        //throwOnErrors = false
+    ) {
+        // if (throwOnErrors) this.#postDataInternal(connection, serviceName, data, auth);
+        let response;
 
-        // if it's non parseable it's either an error or broken json 
+        try {
+            response = await this.#postDataInternal(connection, serviceName, data, auth);
+        } catch (error) {
+            // Sequence contains no matching element
+            console.error('yunIO: fetch/server error: ' + error?.message);
+            return null;
+        }
 
-        // const reader = response.body
-        //     .pipeThrough(new TextDecoderStream())
-        //     .getReader();
+        if (!response.ok) {
+            console.log(`yunIO: HTTP error, please take a look on the payload and response of the request (see the "Network" tab).`);
+            return null;
+        }
 
-        //     while (true) {
-        //         const { value, done } = await reader.read();
-        //         if (done) break;
-        //         console.log('Received', value);
-        //       }
-        // let trace = response.json();
-        // console.log(trace);
-
-        return await response.json(); // parses JSON response into native JavaScript objects
+        try {
+            return await response.json();
+        } catch (error) {
+            console.error('yunIO: server answered, but JSON parse failed: ' + error?.message);
+            return null;
+        }
     }
     //
     //#endregion Network
     //
+
     //
-    // APIs
+    //#region api
     //
     /**
     tableServiceParameters: {
@@ -271,7 +288,7 @@ export class TheobaldYunioClient {
         return TheobaldYunioClient.#postData(connection, functionServiceNameOrPath, functionServiceParameters);
     }
     //
-    //#endregion APIs
+    //#endregion api
     //
 
     //
@@ -340,91 +357,111 @@ export class TheobaldYunioClient {
     })
     */
     static #validateLiveComboboxOptionsAndGetDomControls(options, validationObject) {
-        if (!options) {
-            console.error("YunioJS: options must be defined (table and ui-controls information)");
-            return false;
-        }
+        const
+            messageLocalizations = {
+                en: {
+                    optionsUndefined: "yunIO: options must be defined (table and ui-controls information)",
+                    connectionMissing: "yunIO: Please set the connection to your yunIO system. (options: {connection: {url: 'xyz'}})",
+                    jQueryMissing: "yunIO: Please set the jQuery instance for using LiveCombobox. (options: {$ = NWA$})",
+                    controlsUndefined: "yunIO: controls not defined. Please use initializeLiveCombobox({controls: {xx}})",
+                    inputIdMissing: "yunIO: input field id for searching must be defined 'controls.inputId'.",
+                    selectIdMissing: "yunIO: combobox id for searching must be defined 'controls.selectId'.",
+                    outputIdMissing: "yunIO: output field id for saving a selected item must be defined 'controls.outputId'.",
+                    // controls
+                    inputSearch: 'input for search',
+                    comboboxSearch: 'combobox for search',
+                    outputField: 'output field for saving the selected ID',
+                    descriptionField: 'description field for saving the description',
+                    additionalInfoField: 'additionalInfo field for saving the extra info',
+                    searchButton: 'button for triggering the search',
+                    // table
+                    tableIdField: "yunIO: table idField must be defined 'options: { tableSettings: { idField: 'xx' } } '",
+                    notFound: (name, id) => `yunIO: ${name} not found under id '${id}'. For NintexForms use variables - '${name}: ${id}' - without quotes.`
+                },
+                de: {
+                    optionsUndefined: "yunIO: Optionen müssen definiert werden (Informationen zu Tabelle und UI-Steuerelementen)",
+                    connectionMissing: "yunIO: Bitte stellen Sie die Verbindung zu Ihrem yunIO-System ein. (Optionen: {Verbindung: {url: 'xyz'}})",
+                    jQueryMissing: "yunIO: Bitte setzen Sie die jQuery-Instanz für die Verwendung von LiveCombobox. (Optionen: {$ = NWA$})",
+                    controlsUndefined: "yunIO: Steuerelemente nicht definiert. Bitte verwenden Sie initializeLiveCombobox({controls: {xx}})",
+                    inputIdMissing: "yunIO: Die ID des Eingabefeldes für die Suche muss definiert werden 'controls.inputId'.",
+                    selectIdMissing: "yunIO: Die ID der Combobox für die Suche muss definiert werden 'controls.selectId'.",
+                    outputIdMissing: "yunIO: Die ID des Ausgabefeldes zum Speichern eines ausgewählten Elements muss definiert werden 'controls.outputId'.",
+                    // controls
+                    inputSearch: 'Eingabefeld für die Suche',
+                    comboboxSearch: 'Auswahlfeld (combobox) für die Suche',
+                    outputField: 'Ausgabefeld zum Speichern der ausgewählten ID',
+                    descriptionField: 'Beschreibungsfeld zum Speichern der Beschreibung',
+                    additionalInfoField: 'Zusatzinformationsfeld zum Speichern weiterer Infos',
+                    searchButton: 'Button zum Auslösen der Suche',
+                    // table
+                    tableIdField: "yunIO: idField der Tabelle muss definiert werden: 'options: { tableSettings: { idField: 'xx' } } '",
+                    notFound: (name, id) => `yunIO: ${name} unter der ID '${id}' nicht gefunden. Für NintexForms verwenden Sie Variablen - '${name}: ${id}' - ohne Anführungszeichen.`
+                },
+            },
+            messages = options?.searchOptions?.german ? messageLocalizations.de : messageLocalizations.en;
 
-        // TODO: could be extended to checking on init.
-        if (!options.connection) {
-            console.error("YunioJS: Please set the connection to your yunIO system. (options: {connection: {url: 'xyz'})");
-            return false;
-        }
+        const checkDefined = (condition, errorMessage) => {
+            if (!condition) {
+                console.error(errorMessage);
+                alert(errorMessage);
+                return false;
+            }
+            return true;
+        };
 
-        if (!window.$ && !options.$) {
-            console.error("YunioJS: Please set the jQuery instance for using LiveCombobox. (options: {$ = NWA$})");
-            return false;
-        }
+        if (!checkDefined(options, messages.optionsUndefined)) return false;
+        if (!checkDefined(options.connection, messages.connectionMissing)) return false;
 
         const $ = window.$ || options.$;
+        if (!checkDefined($, messages.jQueryMissing)) return false;
 
         const controls = options.controls;
-
-        if (!controls) {
-            console.error("YunioJS: controls not defined. Please use initializeLiveCombobox({controls: {xx}})");
-            return false;
-        }
-
-        if (!controls.inputId) {
-            console.error(`YunioJS: input field id for searching must be defined 'controls.inputId'.`);
-            return false;
-        }
-
-        if (!controls.selectId) {
-            console.error(`YunioJS: combobox id for searching must be defined 'controls.selectId'.`);
-            return false;
-        }
-
-        if (!controls.outputId) {
-            console.error(`YunioJS: output field id for saving a selected item must be defined 'controls.outputId'.`);
-            return false;
-        }
+        if (!checkDefined(controls, messages.controlsUndefined)) return false;
+        if (!checkDefined(controls.inputId, messages.inputIdMissing)) return false;
+        if (!checkDefined(controls.selectId, messages.selectIdMissing)) return false;
+        if (!checkDefined(controls.outputId, messages.outputIdMissing)) return false;
 
         if (controls.textId) {
-            // backward compatible
             controls.descriptionId = controls.textId;
         }
 
+        const createControlSelector = id => id ? $(`#${id}`) : null;
+        const checkControlExistence = (control, name, id) => {
+            if (control && control.length !== 1) {
+                const msg = messages.notFound(name, id);
+                
+                console.error(msg);
+                alert(msg);
+
+                return false;
+            }
+            return true;
+        };
+
         validationObject.domControls = {
-            tsInput: $(`#${controls.inputId}`),
-            tsSelect: $(`#${controls.selectId}`),
-            tsOutputId: $(`#${controls.outputId}`),
-            tsInputDescription: controls.descriptionId ? $(`#${controls.descriptionId}`) : null,
-            tsAdditionalInfo: controls.additionalInfoId ? $(`#${controls.additionalInfoId}`) : null,
-            tsButton: controls.buttonId ? $(`#${controls.buttonId}`) : null
-        }
+            tsInput: createControlSelector(controls.inputId),
+            tsSelect: createControlSelector(controls.selectId),
+            tsOutputId: createControlSelector(controls.outputId),
+            tsInputDescription: createControlSelector(controls.descriptionId),
+            tsAdditionalInfo: createControlSelector(controls.additionalInfoId),
+            tsButton: createControlSelector(controls.buttonId)
+        };
 
-        const domControls = validationObject.domControls;
+        const { tsInput, tsSelect, tsOutputId, tsInputDescription, tsAdditionalInfo, tsButton } = validationObject.domControls;
 
-        if (domControls.tsInput.length != 1) {
-            console.error(`YunioJS: input for search not found under id '${controls.inputId}'. For NintexForms use variables - 'inputId: myInputId' - without quotes.`);
-            return false;
-        }
+        if (!checkControlExistence(tsInput, messages.inputSearch, controls.inputId)) return false;
+        if (!checkControlExistence(tsSelect, messages.comboboxSearch, controls.selectId)) return false;
+        if (!checkControlExistence(tsOutputId, messages.outputField, controls.outputId)) return false;
+        if (!checkControlExistence(tsInputDescription, messages.descriptionField, controls.descriptionId)) return false;
+        if (!checkControlExistence(tsAdditionalInfo, messages.additionalInfoField, controls.additionalInfoId)) return false;
+        if (!checkControlExistence(tsButton, messages.searchButton, controls.buttonId)) return false;
+        
+        const tableSettings = options.tableSettings;
+        //serviceName: "table-makt" // could be a part of the url.
+        if (!tableSettings.idField) {
+            console.error(messages.tableIdField);
+            alert(messages.tableIdField);
 
-        if (domControls.tsSelect.length != 1) {
-            console.error(`YunioJS: combobox for search not found under id '${controls.selectId}'. For NintexForms use variables - 'selectId: mySelectId' - without quotes.`);
-            return false;
-        }
-
-        if (domControls.tsOutputId.length != 1) {
-            console.error(`YunioJS: output field for saving the selected ID not found under id '${controls.outputId}'. For NintexForms use variables - 'outputId: myOutputId' - without quotes.`);
-            return false;
-        }
-
-        // EXTRA FIELDS
-
-        if (controls.descriptionId && domControls.tsInputDescription.length != 1) {
-            console.error(`YunioJS: description field for saving the description not found under id '${controls.descriptionId}'. For NintexForms use variables - 'descriptionId: myDescriptionId' - without quotes.`);
-            return false;
-        }
-
-        if (controls.additionalInfoId && domControls.tsAdditionalInfo.length != 1) {
-            console.error(`YunioJS: additionalInfo field for saving the extra info not found under id '${controls.additionalInfoId}'. For NintexForms use variables - 'additionalInfoId: myAdditionalInfoId' - without quotes.`);
-            return false;
-        }
-
-        if (controls.buttonId && domControls.tsButton.length != 1) {
-            console.error(`YunioJS: button for triggering the search not found under id '${controls.buttonId}'. For NintexForms use variables - 'buttonId: buttonId' - without quotes.`);
             return false;
         }
 
@@ -433,21 +470,23 @@ export class TheobaldYunioClient {
 
     static #liveComboboxTexts = {
         // literals
-        stringsEN: {
+        en: {
             loading: 'Loading...',
             matches: 'matches',
             noMatchText: 'No direct match!',
             noMatches: 'No matches',
-            errComm: 'Communication error, please see console',
+            errRequest: '== Request failed, please see the console ==',
+            errSvcNotFound: '== Service not found ==',
             select: 'Please select',
             type: 'Start typing in the input above'
         },
-        stringsDE: {
+        de: {
             loading: 'Wird geladen...',
             matches: 'Treffer',
             noMatchText: 'Keine Übereinstimmung.',
             noMatches: 'Keine Treffer',
-            errComm: 'Netzwerk Fehler (bitte Konsole öffnen)',
+            errRequest: '== Anfrage fehlgeschlagen, bitte Konsole überprüfen ==',
+            errSvcNotFound: '== WebService nicht gefunden ==',
             select: 'Bitte auswählen',
             type: 'Geben Sie einen Suchbegriff ein'
         },
@@ -465,10 +504,6 @@ export class TheobaldYunioClient {
         if (!TheobaldYunioClient.#validateLiveComboboxOptionsAndGetDomControls(options, validationObject))
             return void (0);
 
-        // backward compat
-        // if (options?.tableSettings?.textField && !options.tableSettings.descriptionField)
-        //     options.tableSettings.descriptionField = options.tableSettings.textField;
-
         const
             // nintex: it could work without jquery.
             // todo: jq: clone/empty
@@ -483,8 +518,8 @@ export class TheobaldYunioClient {
             strings = TheobaldYunioClient._extendSkipEmptyStrings(
                 {},
                 _searchOptions.german
-                    ? TheobaldYunioClient.#liveComboboxTexts.stringsDE
-                    : TheobaldYunioClient.#liveComboboxTexts.stringsEN,
+                    ? TheobaldYunioClient.#liveComboboxTexts.de
+                    : TheobaldYunioClient.#liveComboboxTexts.en,
                 options.strings),
             //
             whereClause = TheobaldYunioClient.#getWhereClause(_searchOptions, tableSettings),
@@ -536,6 +571,14 @@ export class TheobaldYunioClient {
                 const newOptionAfterInput = firstOption.clone();
                 newOptionAfterInput.prop('selected', 'selected');
 
+                if (data === null) {
+                    newOptionAfterInput.text(strings.errRequest);
+                    tsSelect.append(newOptionAfterInput);
+                    tsSelect[0].selectedIndex = 0;
+
+                    return;
+                }
+
                 if (data.length > 0) {
                     newOptionAfterInput.text(
                         `${strings.select} (${data.length} ${strings.matches})`
@@ -579,6 +622,7 @@ export class TheobaldYunioClient {
 
                 tsSelect[0].selectedIndex = 0;
             } catch (e) {
+                // non fetch error, if any.
                 console.log(e);
             }
         }
@@ -712,10 +756,10 @@ export class TheobaldYunioClient {
         return TheobaldYunioClient.format(
             whereClauseFormat,
             tableSettings.idField,
-            tableSettings.descriptionField || '',
-            tableSettings.additionalInfoField || '',
+            tableSettings.descriptionField,
+            tableSettings.additionalInfoField,
             languageField,
-            language || ''
+            language
         );
     }
     //
